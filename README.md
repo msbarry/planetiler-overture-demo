@@ -1,0 +1,9 @@
+# [Planetiler Overture Demo](https://msbarry.github.io/planetiler-overture-demo)
+
+This demo website shows vector tiles built from the [Overture 2023-07-26-alpha.0](https://overturemaps.org/download/overture-july-alpha-release-notes/) release using Planetiler's experimental [overture schema](https://github.com/onthegomap/planetiler/blob/overture/planetiler-core/src/main/java/com/onthegomap/planetiler/overture/Overture.java). See it here: [https://msbarry.github.io/planetiler-overture-demo](https://msbarry.github.io/planetiler-overture-demo).
+
+Overture data has structured metadata for each element (see [schema](https://docs.overturemaps.org/themes/)), but [maplibre-gl-js](https://github.com/maplibre/maplibre-gl-js/) only supports simple key/value pairs. This initial tileset explodes some structs (like names) out into separate attributes, joins lists into comma-separated strings, but leaves some more complex ones (like [road flags, lanes, surface, and turn/access restrictures](https://docs.overturemaps.org/reference/transportation/segment)) as JSON objects. These JSON objects aren't be usable for a map style, and make the tiles much larger, but let us explore what the data looks like for now.
+
+Planetiler generated the overture.pmtiles output file in about 15 minutes on an `r7g.metal` ec2 instance ([logs](./planet-logs.txt)). Even though the raw data is larger than an equivalent planet osm.pbf file (215GB for overture vs. 75GB for osm.pbf) it is faster to read because elements contain their complete geometry and you don't need to join node locations with ways to get their geometries. `r7g.metal` has 512GB of RAM. Planetiler only needs about ~20GB for this input format, but I used the rest as ramdisk.
+
+There is ongoing discussion about how to best make use of Overture data in [Planetiler issue 636](https://github.com/onthegomap/planetiler/issues/636) - please comment there with any ideas or suggestions!

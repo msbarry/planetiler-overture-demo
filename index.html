@@ -1,0 +1,491 @@
+<!-- <reference path="./index.d.ts" -->
+<html>
+  <head>
+    <script src="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/pmtiles@2.5.0/dist/index.js"></script>
+    <link
+      href="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, shrink-to-fit=no, viewport-fit=cover"
+    />
+    <style>
+      html {
+        text-size-adjust: 100%;
+        -webkit-text-size-adjust: 100%;
+      }
+      html,
+      body {
+        padding: 0;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji",
+          "Segoe UI Emoji", "Segoe UI Symbol";
+      }
+      * {
+        box-sizing: border-box;
+      }
+      #map {
+        height: 100%;
+        width: calc(100% - 300px);
+        top: 0;
+        left: 0;
+        position: relative;
+      }
+      #map,
+      #map canvas {
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+      .not-frozen canvas {
+        cursor: pointer;
+      }
+      #info {
+        background-color: white;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 300px;
+        overflow: scroll;
+        padding: 1em;
+      }
+      hr {
+        border: none;
+        border-top: 1px solid #ddd;
+      }
+      .layer {
+        margin: 0.5em 0;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+      }
+      .color {
+        width: 1em;
+        height: 1em;
+        margin-right: 0.5em;
+      }
+      @media (max-width: 600px) {
+        #map {
+          width: 100%;
+          height: 65%;
+        }
+        #info {
+          top: auto;
+          height: 35%;
+          width: 100%;
+        }
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        padding: 0;
+        margin: 0;
+      }
+      .popup {
+        max-height: 40vh;
+        overflow-y: auto;
+      }
+      .popup * {
+        font-size: inherit;
+      }
+      .popup table {
+        font-size: 90%;
+        width: 100%;
+      }
+      table td {
+        padding-right: 0.5em;
+        vertical-align: top;
+        border-left: 0;
+        border-right: 0;
+        word-break: break-all;
+      }
+      table td:first-child {
+        text-align: right;
+        width: 40%;
+      }
+      table td:last-child {
+        width: 60%;
+      }
+      table tr:not(:last-child) td {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      table {
+        border-spacing: 0;
+      }
+      .not-frozen .maplibregl-popup * {
+        pointer-events: none;
+      }
+      .tiplayer-header {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+      }
+      .tiplayer {
+        width: 1em;
+        height: 1em;
+        margin-right: 0.5em;
+      }
+      .tiplayer--linestring {
+        height: 0.2em;
+      }
+      .tiplayer--point {
+        border-radius: 50%;
+        height: 0.5em;
+        width: 0.5em;
+        padding: 0.25em;
+      }
+      .maplibregl-ctrl-attrib.maplibregl-compact {
+        min-height: 24px;
+      }
+      #warning {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+        pointer-events: none;
+        background-color: rgba(0, 0, 0, 0.1);
+        padding: 1em;
+        font-size: 16px;
+        text-align: center;
+      }
+      #warning a {
+        pointer-events: initial;
+        user-select: initial;
+        -webkit-user-select: initial;
+        -webkit-touch-callout: initial;
+      }
+      #warning.visible {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="info">
+      <h1>Overture Planetiler Demo</h1>
+      <p>
+        These vector tiles are created from the
+        <a
+          href="https://overturemaps.org/download/overture-july-alpha-release-notes"
+          >Overture July 2023 alpha release</a
+        >
+        using
+        <a
+          href="https://github.com/onthegomap/planetiler/blob/overture/planetiler-core/src/main/java/com/onthegomap/planetiler/overture/Overture.java"
+          >Planetiler's experimental overture profile</a
+        >.
+      </p>
+      <p>
+        See the
+        <a href="https://github.com/msbarry/planetiler-overture-demo"
+          >Github Repo</a
+        >
+        for more details.
+      </p>
+      <p>Click or tap to freeze/unfreeze the tooltip.</p>
+      <h2>Layers</h2>
+      <div id="layers"></div>
+    </div>
+    <script>
+      var layers = [
+        // source name, r, g, b
+        // ["water", 6, 204, 204],
+        // ["water_name", 2, 44, 91],
+        // ["waterway", 35, 117, 224],
+        // ["landcover", 83, 224, 51],
+        // ["landuse", 229, 180, 4],
+        ["admins/administrativeBoundary", 197, 69, 211],
+        ["admins/locality", 242, 14, 147],
+        // ["aeroway", 81, 174, 181],
+        ["transportation/segment", 242, 182, 72],
+        // ["transportation_name", 188, 107, 56],
+        ["buildings/building", 43, 43, 43],
+        // ["place", 242, 14, 147],
+        ["places/place", 59, 181, 10],
+      ];
+      var warning = document.getElementById("warning");
+      var protocol = new pmtiles.Protocol();
+      maplibregl.addProtocol("pmtiles", protocol.tile);
+      var map = new maplibregl.Map({
+        container: "map",
+        hash: true,
+        style: {
+          version: 8,
+          metadata: {
+            inspect: true,
+          },
+          sources: {
+            vector_layer: {
+              type: "vector",
+              tiles: [
+                `pmtiles://https://pub-b030bf0b8a424794bcc8d3e53e47ae3c.r2.dev/overture.pmtiles/{z}/{x}/{y}`,
+              ],
+              minzoom: 0,
+              maxzoom: 14,
+              attribution:
+                '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap</a> <a href="https://overturemaps.org/download/overture-july-alpha-release-notes/" target="_blank">&copy; Overture Maps Foundation</a>',
+            },
+          },
+          layers: [
+            {
+              id: "background",
+              type: "background",
+              paint: {
+                "background-color": "rgb(250,250,250)",
+              },
+            },
+            ...layers.map(([id, r, g, b]) => ({
+              id: `vector_layer__${id}_polygon`,
+              type: "fill",
+              source: `vector_layer`,
+              "source-layer": id,
+              filter: ["==", "$type", "Polygon"],
+              paint: {
+                "fill-color": `rgba(${r}, ${g}, ${b}, 0.3)`,
+                "fill-antialias": true,
+                "fill-outline-color": `rgba(${r}, ${g}, ${b}, 0.3)`,
+              },
+            })),
+            ...layers.map(([id, r, g, b]) => ({
+              id: `vector_layer__${id}_line`,
+              type: "line",
+              source: `vector_layer`,
+              "source-layer": id,
+              filter: ["==", "$type", "LineString"],
+              layout: {
+                "line-join": "round",
+                "line-cap": "round",
+              },
+              paint: {
+                "line-color": `rgba(${r}, ${g}, ${b}, 0.6)`,
+              },
+            })),
+            ...layers.map(([id, r, g, b]) => ({
+              id: `vector_layer__${id}_circle`,
+              type: "circle",
+              source: `vector_layer`,
+              "source-layer": id,
+              filter: ["==", "$type", "Point"],
+              paint: {
+                "circle-color": `rgba(${r}, ${g}, ${b}, 0.8)`,
+                "circle-radius": 2,
+              },
+            })),
+          ],
+        },
+        zoom: 14,
+        center: [-71.07003, 42.35647],
+      });
+
+      map.touchPitch.disable();
+      map.touchZoomRotate.disableRotation();
+      map.dragRotate.disable();
+      map.keyboard.disableRotation();
+      map.showTileBoundaries = true;
+      map.addControl(
+        new maplibregl.NavigationControl({
+          showCompass: false,
+        })
+      );
+
+      layers.forEach(([id, r, g, b]) => {
+        document.getElementById("layers").appendChild(
+          dom("div", {
+            className: "layer",
+            children: [
+              dom("div", {
+                className: "color",
+                style: `background-color:rgb(${r}, ${g}, ${b})`,
+              }),
+              dom("span", id),
+            ],
+          })
+        );
+      });
+
+      var popup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        maxWidth: "300px",
+      });
+      var frozen = false;
+      var last;
+      var touch = false;
+      function showPopup(e) {
+        last = e = e || last;
+        const { x, y } = e.point;
+        var buffer = touch ? 5 : 1;
+        var features = map.queryRenderedFeatures([
+          [x - 5, y + 5],
+          [x + 5, y - 5],
+        ]);
+        if (features.length > 0) {
+          const children = [];
+          console.group("features at " + e.lngLat);
+          features.forEach(({ sourceLayer, properties, geometry }, i) => {
+            console.log(sourceLayer, properties);
+            if (i > 0) {
+              children.push(dom("hr"));
+            }
+            children.push(
+              dom("div", {
+                className: "section",
+                children: [
+                  dom("h4", {
+                    className: "tiplayer-header",
+                    children: [
+                      dom("div", {
+                        className:
+                          "tiplayer tiplayer--" +
+                          geometry.type.toLowerCase().replace("multi", ""),
+                        style: `background-color:rgb(${layers
+                          .find((d) => d[0] == sourceLayer)
+                          .slice(1)
+                          .join(",")})`,
+                      }),
+                      dom("span", { innerText: sourceLayer }),
+                    ],
+                  }),
+                  dom("table", {
+                    children: Object.keys(properties)
+                      .filter((d) => d === "name")
+                      .concat(
+                        Object.keys(properties)
+                          .filter((d) => !/^name/.test(d))
+                          .concat(
+                            Object.keys(properties).filter((d) =>
+                              /^name\./.test(d)
+                            )
+                          )
+                      )
+                      .map((key) =>
+                        dom("tr", {
+                          children: [
+                            dom("td", { innerText: key }),
+                            dom("td", linkify(properties[key])),
+                          ],
+                        })
+                      ),
+                  }),
+                ],
+              })
+            );
+          });
+
+          function linkify(text) {
+            return String(text).indexOf("http") === 0
+              ? {
+                  children: text.split(",").map((url) =>
+                    dom("a", {
+                      href: text,
+                      innerText: text,
+                      target: "_blank",
+                    })
+                  ),
+                }
+              : { innerText: text };
+          }
+          console.groupEnd();
+
+          const div = dom("div", {
+            ontouchstart: (e) => e.stopPropagation(),
+            className: "popup",
+            children,
+          });
+          const coordinates = e.lngLat;
+          popup.setLngLat(e.lngLat).setDOMContent(div).addTo(map);
+        } else {
+          popup.remove();
+        }
+      }
+      function dom(elem, attrs) {
+        const element = document.createElement(elem);
+        if (typeof attrs === "object") {
+          Object.keys(attrs).forEach((key) => (element[key] = attrs[key]));
+          const children = attrs.children;
+          if (Array.isArray(children)) {
+            children.forEach((child) => element.appendChild(child));
+          }
+        } else if (typeof attrs === "string") {
+          element.innerText = attrs;
+        }
+        return element;
+      }
+      var timeout = null;
+      map.on("touchstart", (e) => {
+        touch = true;
+        clearTimeout(timeout);
+        clearTimeout(clickTimeout);
+        timeout = setTimeout(() => (touch = false), 1000);
+      });
+      map.on("mousemove", (e) => {
+        if (frozen || touch) return;
+        showPopup(e);
+      });
+      map.on("mouseout", (e) => {
+        if (!frozen) {
+          popup.remove();
+        }
+      });
+      document.documentElement.className = "not-frozen";
+      var clickTimeout = null;
+      map.on("move", () => {
+        clearTimeout(clickTimeout);
+      });
+      map.on("click", (e) => {
+        if (touch) {
+          clearTimeout(clickTimeout);
+          if (frozen) {
+            toggleFrozen();
+          } else {
+            clickTimeout = setTimeout(() => {
+              if (!frozen) {
+                showPopup(e);
+              }
+              toggleFrozen();
+            }, 300);
+          }
+        } else {
+          toggleFrozen();
+        }
+      });
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "f") {
+          toggleFrozen();
+        }
+      });
+      function toggleFrozen() {
+        // don't freeze if it's not showing
+        if (!frozen && !popup.isOpen()) return;
+        frozen = !frozen;
+        document.documentElement.className = frozen ? "frozen" : "not-frozen";
+        if (!frozen) {
+          popup.options.closeButton = false;
+          popup.remove();
+        } else {
+          popup.options.closeButton = true;
+          showPopup();
+          popup.off("close");
+          popup.once("close", () => {
+            document.documentElement.className = "not-frozen";
+            frozen = false;
+            popup.options.closeButton = false;
+          });
+        }
+      }
+    </script>
+  </body>
+</html>
