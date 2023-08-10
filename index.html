@@ -2,7 +2,7 @@
 <html>
   <head>
     <script src="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.js"></script>
-    <script src="https://unpkg.com/pmtiles@2.5.0/dist/index.js"></script>
+    <script src="https://unpkg.com/pmtiles@2.10.0/dist/index.js"></script>
     <link
       href="https://unpkg.com/maplibre-gl@3.2.1/dist/maplibre-gl.css"
       rel="stylesheet"
@@ -211,6 +211,7 @@
         ["admins/locality", 242, 14, 147],
         // ["aeroway", 81, 174, 181],
         ["transportation/segment", 242, 182, 72],
+        ["transportation/connector", 232, 172, 62],
         // ["transportation_name", 188, 107, 56],
         ["buildings/building", 43, 43, 43],
         // ["place", 242, 14, 147],
@@ -254,9 +255,20 @@
               "source-layer": id,
               filter: ["==", "$type", "Polygon"],
               paint: {
-                "fill-color": `rgba(${r}, ${g}, ${b}, 0.3)`,
+                "fill-color": `rgb(${r}, ${g}, ${b})`,
+                "fill-opacity": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  0.4,
+                  0.3,
+                ],
                 "fill-antialias": true,
-                "fill-outline-color": `rgba(${r}, ${g}, ${b}, 0.3)`,
+                "fill-outline-color": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  `rgb(${r}, ${g}, ${b})`,
+                  `rgba(${r}, ${g}, ${b}, 0.3)`,
+                ],
               },
             })),
             ...layers.map(([id, r, g, b]) => ({
@@ -270,7 +282,19 @@
                 "line-cap": "round",
               },
               paint: {
-                "line-color": `rgba(${r}, ${g}, ${b}, 0.6)`,
+                "line-color": `rgb(${r}, ${g}, ${b})`,
+                "line-opacity": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  1,
+                  0.4,
+                ],
+                "line-width": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  1.5,
+                  1,
+                ],
               },
             })),
             ...layers.map(([id, r, g, b]) => ({
@@ -280,8 +304,19 @@
               "source-layer": id,
               filter: ["==", "$type", "Point"],
               paint: {
-                "circle-color": `rgba(${r}, ${g}, ${b}, 0.8)`,
-                "circle-radius": 2,
+                "circle-color": `rgb(${r}, ${g}, ${b})`,
+                "circle-opacity": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  1,
+                  0.6,
+                ],
+                "circle-radius": [
+                  "case",
+                  ["boolean", ["feature-state", "hover"], false],
+                  3,
+                  2,
+                ],
               },
             })),
           ],
@@ -324,6 +359,7 @@
       var frozen = false;
       var last;
       var touch = false;
+      let hovered = [];
       function showPopup(e) {
         last = e = e || last;
         const { x, y } = e.point;
@@ -332,13 +368,17 @@
           [x - 5, y + 5],
           [x + 5, y - 5],
         ]);
+        const newHovered = [];
         if (features.length > 0) {
           const children = [];
           console.group("features at " + e.lngLat);
-          features.forEach(({ sourceLayer, properties, geometry }, i) => {
+          features.forEach(({ sourceLayer, properties, geometry, id }, i) => {
             console.log(sourceLayer, properties);
             if (i > 0) {
               children.push(dom("hr"));
+            }
+            if (id) {
+              newHovered.push([sourceLayer, id]);
             }
             children.push(
               dom("div", {
@@ -410,6 +450,16 @@
         } else {
           popup.remove();
         }
+        hovered.forEach(([sourceLayer, id]) => {
+          map.removeFeatureState({ source: "vector_layer", sourceLayer, id });
+        });
+        newHovered.forEach(([sourceLayer, id]) => {
+          map.setFeatureState(
+            { source: "vector_layer", sourceLayer, id },
+            { hover: true }
+          );
+        });
+        hovered = newHovered;
       }
       function dom(elem, attrs) {
         const element = document.createElement(elem);
