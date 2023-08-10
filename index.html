@@ -403,13 +403,17 @@
                     children: Object.keys(properties)
                       .filter((d) => d === "name")
                       .concat(
-                        Object.keys(properties)
-                          .filter((d) => !/^name/.test(d))
-                          .concat(
+                        sort(
+                          Object.keys(properties).filter(
+                            (d) => !/^name/.test(d)
+                          )
+                        ).concat(
+                          sort(
                             Object.keys(properties).filter((d) =>
                               /^name\./.test(d)
                             )
                           )
+                        )
                       )
                       .map((key) =>
                         dom("tr", {
@@ -473,6 +477,10 @@
           element.innerText = attrs;
         }
         return element;
+      }
+      function sort(array) {
+        array.sort();
+        return array;
       }
       var timeout = null;
       map.on("touchstart", (e) => {
