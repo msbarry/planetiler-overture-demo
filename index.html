@@ -232,7 +232,10 @@
             vector_layer: {
               type: "vector",
               tiles: [
-                `pmtiles://https://pub-b030bf0b8a424794bcc8d3e53e47ae3c.r2.dev/overture.pmtiles/{z}/{x}/{y}`,
+                `pmtiles://${
+                  new URLSearchParams(window.location.search).get("tiles") ||
+                  "https://pub-b030bf0b8a424794bcc8d3e53e47ae3c.r2.dev/overture.pmtiles"
+                }/{z}/{x}/{y}`,
               ],
               minzoom: 0,
               maxzoom: 14,
