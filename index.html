@@ -178,9 +178,8 @@
       <h1>Overture Planetiler Demo</h1>
       <p>
         These vector tiles are created from the
-        <a
-          href="https://overturemaps.org/download/overture-october-2023-release-notes"
-          >Overture October 2023 alpha release</a
+        <a href="https://overturemaps.org/overture-december-2023-release-notes/"
+          >Overture December 2023 alpha release</a
         >
         using
         <a
@@ -207,7 +206,7 @@
         // ["water_name", 2, 44, 91],
         // ["waterway", 35, 117, 224],
         // ["landcover", 83, 224, 51],
-        ["base/landuse", 229, 180, 4],
+        ["base/landUse", 229, 180, 40],
         ["admins/administrativeBoundary", 197, 69, 211],
         ["admins/locality", 242, 14, 147],
         // ["aeroway", 81, 174, 181],
@@ -215,6 +214,7 @@
         ["transportation/connector", 232, 172, 62],
         // ["transportation_name", 188, 107, 56],
         ["buildings/building", 43, 43, 43],
+        ["buildings/part", 100, 100, 100, 0, 0, 0],
         // ["place", 242, 14, 147],
         ["places/place", 59, 181, 10],
       ];
@@ -267,14 +267,26 @@
                   0.3,
                 ],
                 "fill-antialias": true,
-                "fill-outline-color": [
-                  "case",
-                  ["boolean", ["feature-state", "hover"], false],
-                  `rgb(${r}, ${g}, ${b})`,
-                  `rgba(${r}, ${g}, ${b}, 0.3)`,
-                ],
               },
             })),
+            ...layers
+              .filter((d) => d.length > 4)
+              .map(([id, r, g, b, ro = r, go = g, bo = b]) => ({
+                id: `vector_layer__${id}_polygon_border`,
+                type: "line",
+                source: `vector_layer`,
+                "source-layer": id,
+                filter: ["==", "$type", "Polygon"],
+                paint: {
+                  "line-color": [
+                    "case",
+                    ["boolean", ["feature-state", "hover"], false],
+                    `rgb(${ro}, ${go}, ${bo})`,
+                    `rgba(${ro}, ${go}, ${bo}, 0.3)`,
+                  ],
+                  "line-width": 0.5,
+                },
+              })),
             ...layers.map(([id, r, g, b]) => ({
               id: `vector_layer__${id}_line`,
               type: "line",
